@@ -1,0 +1,28 @@
+# OS & editor files
+.DS_Store
+._*
+Thumbs.db
+
+# Private runtime, caches, and logs (installed per machine during 1 Setup)
+Support Files/.python/
+Support Files/.venv/
+Support Files/.tools/
+Support Files/.uv-cache/
+Support Files/.ffmpeg-bin/
+Support Files/.xdg-cache/
+Support Files/.xdg-config/
+Support Files/.xdg-data/
+Support Files/.matplotlib/
+Support Files/__pycache__/
+Support Files/*.pyc
+Support Files/models/*
+!Support Files/models/.gitkeep
+Support Files/logs/*
+!Support Files/logs/.gitkeep
+
+# User audio, transcripts, and support bundles
+Audio to Transcribe/*
+!Audio to Transcribe/.gitkeep
+Finished Transcripts/*
+!Finished Transcripts/.gitkeep
+*.zip

@@ -1,0 +1,8 @@
+whisperx==3.7.6
+av==15.1.0
+torch==2.8.0
+torchaudio==2.8.0
+pyannote.audio==3.4.0
+watchdog==6.0.0
+python-dotenv==1.2.1
+imageio-ffmpeg==0.6.0
