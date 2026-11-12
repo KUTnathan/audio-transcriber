@@ -22,7 +22,7 @@ Do these two steps once:
 ### Step 1: Get Your Free Hugging Face Token (For Speaker Labels)
 The open-source AI model that separates speakers (`pyannote`) is free for research and journalism, and asks each user to accept its terms once:
 
-1. Create a free account at **https://huggingface.co/join** and confirm your email. (Hugging Face is a website where people can share free and open source AI models.)
+1. Create a free account at **https://huggingface.co/join** and confirm your email. (Hugging Face is a website where people can share free and open source AI models. It's named after this hugging face emoji: 🤗)
 2. **Important — Accept BOTH model pages:** While logged into Hugging Face, open **both** links below, fill in the short form if asked, and click **Agree / Submit**:
    * **https://huggingface.co/pyannote/segmentation-3.0**
    * **https://huggingface.co/pyannote/speaker-diarization-3.1**
