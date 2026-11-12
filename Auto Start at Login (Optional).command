@@ -38,14 +38,20 @@ STATUS_TEXT="$("$PYTHON" "$SUPPORT_DIR/transcriber.py" --manage-autostart status
 echo "Current status: $STATUS_TEXT"
 echo
 
-if [[ "$STATUS_TEXT" == OFF* ]]; then
-    read -r -p "Turn ON Auto-Start at Login? [Press Enter or type YES, or N to cancel]: " CHOICE
+if [[ "$STATUS_TEXT" == OFF* || "$STATUS_TEXT" == "ON (saved for next login)"* ]]; then
+    if [[ "$STATUS_TEXT" == "ON (saved for next login)"* ]]; then
+        echo "Auto-Start is saved but is not active yet. This can happen after an older setup."
+        PROMPT="Activate Auto-Start now? [Press Enter or type YES, or N to cancel]: "
+    else
+        PROMPT="Turn ON Auto-Start at Login? [Press Enter or type YES, or N to cancel]: "
+    fi
+    read -r -p "$PROMPT" CHOICE
     CHOICE_CLEAN="$(printf '%s' "${CHOICE:-}" | /usr/bin/tr '[:upper:]' '[:lower:]' | /usr/bin/tr -d '[:space:]')"
     if [[ -z "$CHOICE_CLEAN" || "$CHOICE_CLEAN" == "y" || "$CHOICE_CLEAN" == "yes" || "$CHOICE_CLEAN" == "on" ]]; then
         echo
         "$PYTHON" "$SUPPORT_DIR/transcriber.py" --manage-autostart on
     else
-        echo "Canceled — Auto-Start remains OFF."
+        echo "Canceled — no change was made."
     fi
 else
     EXPECTED_CMD="$APP_DIR/3 Start Transcriber.command"
