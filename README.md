@@ -84,7 +84,7 @@ If you want to use your own folders (for example, watching a `2026 TAPE` folder 
 2. A **Terminal** window opens and says:
    `Ready and watching for audio files!`
 3. **Leave that Terminal window open.** Terminal is the app's visible status window. You can minimize it to the Dock (`Command + M`). If the Mac sleeps or you close its lid, transcription pauses and continues after the Mac wakes. Do not close the Terminal window while you want the app watching.
-4. Drop an audio file into your watch folder. You'll see `[1/4]` through `[4/4]` progress steps in Terminal. When done, you'll hear a completion chime and find `YourFileName_transcript.txt` in your transcript folder!
+4. Drop an audio file into your watch folder. You'll see `[1/4]` through `[4/4]` progress steps in Terminal. When done, you'll hear a completion chime and a voice say "Transcript complete" and find `YourFileName_transcript.txt` in your transcript folder! You can change the notification sound if you want. It's in the folder under Support Files/assets/notify.wav. To change it, just put a different wav file and rename it notify.wav.
    **Important:** AI transcripts and speaker labels can be wrong. Listen to the recording and verify every quote, name, number, and speaker before publication.
 
 ### How to Stop and Restart (`Control + C`, `Up-Arrow`, `Enter`)
