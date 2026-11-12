@@ -26,7 +26,7 @@ The open-source AI model that separates speakers (`pyannote`) is free for resear
 2. **Important — Accept BOTH model pages:** While logged into Hugging Face, open **both** links below, fill in the short form if asked, and click **Agree / Submit**:
    * **https://huggingface.co/pyannote/segmentation-3.0**
    * **https://huggingface.co/pyannote/speaker-diarization-3.1**
-3. Create a read-only access token at **https://huggingface.co/settings/tokens**:
+3. Lastly, you need to create an "access token" that bestows this permission to the AI model downloaded to your machine. So just go here: **https://huggingface.co/settings/tokens**:
    * Click **Create new token**.
    * Select **Read** at the top for the token type (skip "Fine-grained"—plain **Read** is all you need and has zero extra checkboxes!).
    * Name it `audio-transcriber`, click **Create token**, and **copy** the token (it starts with `hf_`).
