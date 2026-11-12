@@ -29,7 +29,7 @@ The open-source AI model that separates speakers (`pyannote`) is free for resear
 3. Lastly, you need to create an "access token" that bestows this permission to the AI model downloaded to your machine. So just go here: **https://huggingface.co/settings/tokens**:
    * Click **Create new token**.
    * Select **Read** at the top for the token type (skip "Fine-grained"—plain **Read** is all you need and has zero extra checkboxes!).
-   * Name it `audio-transcriber`, click **Create token**, and **copy** the token (it starts with `hf_`).
+   * Name it `audio-transcriber` (or whatever you want), click **Create token**, and **copy** the token (it starts with `hf_`). Paste it somewhere temporarily for now. You'll only need to enter it once after you install this transcriber tool.  
 
 ### Step 2: Run the One-Line Installer in Terminal
 1. On your Mac, press **`Command + Space`**, type **`Terminal`**, and press **`Enter`**. This opens the Terminal app that comes pre-installed with your Mac.
