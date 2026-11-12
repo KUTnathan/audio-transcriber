@@ -128,7 +128,7 @@ If you want Audio Transcriber to pop open automatically in a Terminal window eve
   Open `YourFile_FAILED.txt`. It explains what happened and what to try next.
 
 * **"Transcription feels much slower than usual"**
-  On Apple Silicon Macs, a 30-minute recording typically takes 8–25 minutes depending on your Mac. If it suddenly takes 3x+ longer than the audio length, your Mac is likely low on free memory from heavy browser tabs or apps—closing extra tabs or restarting your Mac restores normal speed.
+  Depending how fast your computer is, a 10 minute recording could take anywhere from 5 to 15 minutes to transcribe on an Apple Silicon Macs. If it suddenly takes 3x+ longer than the audio length, your Mac is likely low on free memory from heavy browser tabs or apps. Closing extra tabs or restarting your Mac will probably help.  
 
 * **"Something in the Python setup broke"**
   Open **`More Tools`** and double-click **`Repair Setup.command`**, type `REPAIR`, and press `Enter`. It rebuilds the Python environment without touching your audio, transcripts, token, or downloaded AI models.
