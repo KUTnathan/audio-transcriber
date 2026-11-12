@@ -32,7 +32,7 @@ The open-source AI model that separates speakers (`pyannote`) is free for resear
    * Name it `audio-transcriber`, click **Create token**, and **copy** the token (it starts with `hf_`).
 
 ### Step 2: Run the One-Line Installer in Terminal
-1. On your Mac, press **`Command + Space`**, type **`Terminal`**, and press **`Enter`**.
+1. On your Mac, press **`Command + Space`**, type **`Terminal`**, and press **`Enter`**. This opens the Terminal app that comes pre-installed with your Mac.
 2. Copy and paste this single line into the Terminal window and press **`Enter`**:
 
 ```bash
