@@ -49,7 +49,7 @@ curl -fsSL https://raw.githubusercontent.com/KUTnathan/audio-transcriber/main/in
 
 ## What Is Inside Your `audio-transcriber` Folder
 
-Once installed, everything works by normal double-clicking in Finder:
+Once installed, everything works by double-clicking in Finder:
 
 * **`0 Read Me First.txt`** — This guide.
 * **`1 Setup.command`** — Re-checks setup or downloads models if you skipped pasting your token during install.
@@ -62,7 +62,7 @@ Once installed, everything works by normal double-clicking in Finder:
 
 ---
 
-## Part 2: Choosing or Changing Your Folders Anytime
+## Part 2: Choosing or Changing Your Folders Anytime (Optional) 
 
 By default, you drop audio into **`Audio to Transcribe`** and transcripts appear in **`Finished Transcripts`**.
 
