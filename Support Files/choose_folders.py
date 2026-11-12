@@ -178,14 +178,18 @@ end run
             chosen = chosen.rstrip("/")
         return chosen
 
+    # Cancel means "keep the current folder." Do not unexpectedly replace the
+    # canceled Finder dialog with a Terminal path prompt.
+    if out == "CANCEL":
+        return ""
+
     # Bring Terminal back to the front so the user can either press Enter or drag a folder in!
     subprocess.run(
         ["/usr/bin/osascript", "-e", 'tell application "Terminal" to activate'],
         capture_output=True,
         check=False,
     )
-    if out != "CANCEL":
-        print("  (Finder popup window could not open automatically on this Mac.)")
+    print("  (Finder popup window could not open automatically on this Mac.)")
     return _prompt_terminal_folder_fallback(step_label, initial_dir)
 
 

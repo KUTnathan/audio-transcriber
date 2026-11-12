@@ -57,6 +57,11 @@ fi
 
 ARCH="$(uname -m)"
 if [[ "$ARCH" != "arm64" ]]; then
+    if [[ "$ARCH" == "x86_64" && "$(/usr/sbin/sysctl -in sysctl.proc_translated 2>/dev/null || true)" == "1" ]]; then
+        echo "ERROR: Terminal is running in Rosetta mode on an Apple Silicon Mac."
+        echo "Turn off 'Open using Rosetta' for Terminal, reopen Terminal, and run setup again."
+        exit 1
+    fi
     echo "ERROR: This Mac uses an older Intel processor ($ARCH)."
     echo "Audio Transcriber is built for Apple Silicon Macs (M1, M2, M3, M4 or newer)."
     exit 1
@@ -70,13 +75,13 @@ fi
 
 FREE_KB="$(/bin/df -Pk "$APP_DIR" | /usr/bin/awk 'NR==2 {print $4}')"
 MIN_KB=$((4 * 1024 * 1024))
-RECOMMENDED_KB=$((8 * 1024 * 1024))
+RECOMMENDED_KB=$((6 * 1024 * 1024))
 if [[ -n "$FREE_KB" && "$FREE_KB" -lt "$MIN_KB" ]]; then
     echo "ERROR: Less than 4 GB of free disk space is available."
-    echo "Please free up at least 8 GB of space, then run 1 Setup.command again."
+    echo "Please free up at least 6 GB of space, then run 1 Setup.command again."
     exit 1
 elif [[ -n "$FREE_KB" && "$FREE_KB" -lt "$RECOMMENDED_KB" ]]; then
-    echo "Note: Less than the recommended 8 GB of free disk space is available."
+    echo "Note: Less than the recommended 6 GB of free disk space is available."
     echo "Setup should still work, though extra space helps with large audio files."
     echo
 fi

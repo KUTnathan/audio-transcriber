@@ -27,7 +27,8 @@ echo "This rebuilds the private Python setup inside Support Files."
 echo "It does NOT delete your audio files, transcripts, Hugging Face token, or downloaded AI models."
 echo
 read -r -p "Type REPAIR and press Enter to continue: " CONFIRM
-if [[ "$CONFIRM" != "REPAIR" ]]; then
+CONFIRM_CLEAN="$(printf '%s' "${CONFIRM:-}" | /usr/bin/tr '[:lower:]' '[:upper:]' | /usr/bin/tr -d '[:space:]')"
+if [[ "$CONFIRM_CLEAN" != "REPAIR" ]]; then
     echo "Repair canceled."
     read -r -p "Press Enter to close..."
     exit 0

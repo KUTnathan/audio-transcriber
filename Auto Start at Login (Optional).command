@@ -39,8 +39,9 @@ echo "Current status: $STATUS_TEXT"
 echo
 
 if [[ "$STATUS_TEXT" == OFF* ]]; then
-    read -r -p "Turn ON Auto-Start at Login? [Press Enter for YES, or type N to cancel]: " CHOICE
-    if [[ -z "$CHOICE" || "$CHOICE" =~ ^[Yy]$ ]]; then
+    read -r -p "Turn ON Auto-Start at Login? [Press Enter or type YES, or N to cancel]: " CHOICE
+    CHOICE_CLEAN="$(printf '%s' "${CHOICE:-}" | /usr/bin/tr '[:upper:]' '[:lower:]' | /usr/bin/tr -d '[:space:]')"
+    if [[ -z "$CHOICE_CLEAN" || "$CHOICE_CLEAN" == "y" || "$CHOICE_CLEAN" == "yes" || "$CHOICE_CLEAN" == "on" ]]; then
         echo
         "$PYTHON" "$SUPPORT_DIR/transcriber.py" --manage-autostart on
     else
@@ -52,16 +53,18 @@ else
         echo "Note: Auto-Start currently points to a previous folder location."
         echo "Type U to update it to this folder, Enter to turn it OFF, or K to cancel."
         read -r -p "Choice [Enter = Turn OFF / U = Update folder / K = Cancel]: " CHOICE
-        if [[ "$CHOICE" =~ ^[Uu]$ ]]; then
+        CHOICE_CLEAN="$(printf '%s' "${CHOICE:-}" | /usr/bin/tr '[:upper:]' '[:lower:]' | /usr/bin/tr -d '[:space:]')"
+        if [[ "$CHOICE_CLEAN" == "u" || "$CHOICE_CLEAN" == "update" ]]; then
             echo
             "$PYTHON" "$SUPPORT_DIR/transcriber.py" --manage-autostart on
             exit 0
         fi
     else
-        read -r -p "Turn OFF Auto-Start at Login? [Press Enter for YES, or type K to keep ON]: " CHOICE
+        read -r -p "Turn OFF Auto-Start at Login? [Press Enter or type YES, or K to keep ON]: " CHOICE
+        CHOICE_CLEAN="$(printf '%s' "${CHOICE:-}" | /usr/bin/tr '[:upper:]' '[:lower:]' | /usr/bin/tr -d '[:space:]')"
     fi
 
-    if [[ -z "${CHOICE:-}" || "$CHOICE" =~ ^[Yy]$ ]]; then
+    if [[ -z "$CHOICE_CLEAN" || "$CHOICE_CLEAN" == "y" || "$CHOICE_CLEAN" == "yes" || "$CHOICE_CLEAN" == "off" ]]; then
         echo
         "$PYTHON" "$SUPPORT_DIR/transcriber.py" --manage-autostart off
     else

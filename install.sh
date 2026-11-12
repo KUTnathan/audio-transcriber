@@ -27,8 +27,23 @@ fi
 
 ARCH="$(uname -m)"
 if [[ "$ARCH" != "arm64" ]]; then
+    if [[ "$ARCH" == "x86_64" && "$(/usr/sbin/sysctl -in sysctl.proc_translated 2>/dev/null || true)" == "1" ]]; then
+        echo "ERROR: Terminal is running in Rosetta mode on an Apple Silicon Mac."
+        echo "Turn off 'Open using Rosetta' for Terminal, reopen Terminal, and try again."
+        exit 1
+    fi
     echo "ERROR: This Mac uses an older Intel processor ($ARCH)."
     echo "Audio Transcriber is built for Apple Silicon Macs (M1, M2, M3, M4 or newer)."
+    exit 1
+fi
+
+# Never replace program files while a transcription is running.
+EXISTING_PYTHON="$INSTALL_DIR/Support Files/.venv/bin/python"
+EXISTING_APP="$INSTALL_DIR/Support Files/transcriber.py"
+if [[ -x "$EXISTING_PYTHON" && -f "$EXISTING_APP" ]] && \
+   "$EXISTING_PYTHON" "$EXISTING_APP" --is-running >/dev/null 2>&1; then
+    echo "ERROR: Audio Transcriber is currently running."
+    echo "Click its Terminal window, press Control+C, then run this installer again."
     exit 1
 fi
 
@@ -63,6 +78,9 @@ fi
 mkdir -p "$INSTALL_DIR"
 /usr/bin/tar -cf - -C "$EXTRACTED_DIR" . | /usr/bin/tar -xf - -C "$INSTALL_DIR"
 
+# README.md is useful on GitHub; Finder users get the cleaner 0 Read Me First.txt.
+rm -f "$INSTALL_DIR/README.md"
+
 if [[ "$HAS_EXISTING_SETTINGS" -eq 1 ]]; then
     cp "$TMP_STAGE/Settings.ini.bak" "$INSTALL_DIR/Settings.ini"
 fi
@@ -92,6 +110,10 @@ fi
 echo "Downloaded to: $INSTALL_DIR"
 echo "Starting one-time setup..."
 echo
+
+# `exec` does not run the EXIT trap, so remove downloaded staging files first.
+cleanup
+trap - EXIT
 
 # Reconnect stdin to the controlling Terminal keyboard when invoked via `curl ... | bash`
 if [[ "${AT_NONINTERACTIVE:-0}" != "1" && -r /dev/tty ]]; then

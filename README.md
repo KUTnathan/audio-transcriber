@@ -2,7 +2,7 @@
 
 This tool watches an audio folder on your Mac, transcribes recordings automatically, labels different speakers (`SPEAKER_00`, `SPEAKER_01`, etc.), and adds timestamps every 5 sentences so you can jump straight to quotes.
 
-* **100% Local & Confidential:** Your audio files and transcripts stay on your computer. Nothing is uploaded to OpenAI or cloud transcription services.
+* **Local Transcription:** Your audio files and transcripts stay on your computer. They are not uploaded to OpenAI or a cloud transcription service. Setup, model downloads, token checks, and updates do use the internet.
 * **No Admin Password & No Security Popups:** Installing with the one-line Terminal command below sets up a private copy of Python and all AI models inside `~/audio-transcriber` without needing an administrator password or triggering macOS "unverified developer" blocks.
 * **Supported Audio/Video Files:** `.m4a`, `.mp3`, `.wav`, `.mp4`, `.mov`, `.flac`, `.ogg`, `.opus`, `.aac`, `.wma`, `.webm`
 
@@ -10,8 +10,8 @@ This tool watches an audio folder on your Mac, transcribes recordings automatica
 
 ## Before You Start (30-Second Checklist)
 
-1. **Computer:** An Apple Silicon Mac (M1, M2, M3, M4 or newer).
-2. **Free Space & Wi-Fi:** Have **at least 8 GB of free disk space** and an internet connection for the one-time setup. (After setup, transcription works completely offline.)
+1. **Computer:** An Apple Silicon Mac (M1, M2, M3, M4 or newer) running macOS 13 Ventura or newer.
+2. **Free Space & Wi-Fi:** Have **at least 6 GB of free disk space** and an internet connection for setup. Once the models are downloaded, ordinary transcription does not need the internet.
 
 ---
 
@@ -51,7 +51,7 @@ curl -fsSL https://raw.githubusercontent.com/KUTnathan/audio-transcriber/main/in
 
 Once installed, everything works by normal double-clicking in Finder:
 
-* **`0 Read Me First.txt` / `README.md`** — This guide.
+* **`0 Read Me First.txt`** — This guide.
 * **`1 Setup.command`** — Re-checks setup or downloads models if you skipped pasting your token during install.
 * **`2 Choose Folders.command`** — Pick (or change) which folder to watch for audio and where to save finished transcripts.
 * **`3 Start Transcriber.command`** — Opens the watcher in Terminal. Leave that window open while working.
@@ -83,16 +83,18 @@ If you want to use your own folders (for example, watching a `2026 TAPE` folder 
 1. Double-click **`3 Start Transcriber.command`** (unless you turned on Auto Start at Login, in which case it opens for you automatically!).
 2. A **Terminal** window opens and says:
    `Ready and watching for audio files!`
-3. **Leave that Terminal window open.** Think of Terminal as the dashboard light: you can **minimize** it to the Dock (`Command + M`) and ignore it while you work, and MacBook lid-closing/sleep is fine. Just don't close (`Command + Q` / red `X`) the Terminal window while you want it watching.
+3. **Leave that Terminal window open.** Terminal is the app's visible status window. You can minimize it to the Dock (`Command + M`). If the Mac sleeps or you close its lid, transcription pauses and continues after the Mac wakes. Do not close the Terminal window while you want the app watching.
 4. Drop an audio file into your watch folder. You'll see `[1/4]` through `[4/4]` progress steps in Terminal. When done, you'll hear a completion chime and find `YourFileName_transcript.txt` in your transcript folder!
-   *(Tip: If an audio file was already sitting in the folder before you started the watcher, just click the file in Finder, press **`Command + Delete`**, and immediately press **`Command + Z`** to Undo — it will start transcribing right away!)*
+   **Important:** AI transcripts and speaker labels can be wrong. Listen to the recording and verify every quote, name, number, and speaker before publication.
 
 ### How to Stop and Restart (`Control + C`, `Up-Arrow`, `Enter`)
 Need to pause transcription or restart the watcher?
 1. **To Stop:** Click inside the Terminal window and hold **`Control`** and press **`C`** (`Control + C`).
    * The watcher stops cleanly and stays right in that same window.
 2. **To Restart:** Press the **`Up-Arrow`** key on your keyboard, then press **`Enter`** (or simply type `restart` and press `Enter`).
-   * It starts right back up—including resuming any waiting files that hadn't finished yet!
+   * Waiting files remain in the queue. If a file was actively transcribing when you stopped, that file starts again from the beginning.
+
+If you change folders while files are already waiting, those waiting files finish using the folders that were selected when they entered the queue. Newly added files use the new folders.
 
 ---
 
@@ -119,11 +121,11 @@ If you want Audio Transcriber to pop open automatically in a Terminal window eve
 
 * **"An audio file is in my watch folder, and nothing happened"**
   1. Check that the Terminal window from `3 Start Transcriber.command` is open and says `Ready and watching`.
-  2. If the audio file was already in that folder *before* you opened `3 Start Transcriber.command`, click the audio file in Finder, press **`Command + Delete`**, and immediately press **`Command + Z`** (Undo) — the watcher will pick it right up!
+  2. If the audio file was already in that folder *before* you opened `3 Start Transcriber.command`, move it temporarily to another folder, then move it back into the watch folder.
   3. Check if a `YourFile_transcript.txt` **already exists** in your transcript folder—by default, the app skips files that already have a transcript so it doesn't accidentally overwrite your work. Delete or move the old transcript first if you want to redo it.
 
 * **"A file created `YourFile_FAILED.txt` instead of a transcript"**
-  Open `YourFile_FAILED.txt`—it explains in plain English what happened and what to try next.
+  Open `YourFile_FAILED.txt`. It explains what happened and what to try next.
 
 * **"Transcription feels much slower than usual"**
   On Apple Silicon Macs, a 30-minute recording typically takes 8–25 minutes depending on your Mac. If it suddenly takes 3x+ longer than the audio length, your Mac is likely low on free memory from heavy browser tabs or apps—closing extra tabs or restarting your Mac restores normal speed.
@@ -132,7 +134,7 @@ If you want Audio Transcriber to pop open automatically in a Terminal window eve
   Open **`More Tools`** and double-click **`Repair Setup.command`**, type `REPAIR`, and press `Enter`. It rebuilds the Python environment without touching your audio, transcripts, token, or downloaded AI models.
 
 * **"I still need help from Nathan"**
-  Open **`More Tools`** and double-click **`Make Support Zip.command`**. It creates `Audio Transcriber Support Info.zip` in the main folder (automatically stripping out your Hugging Face token and redacting audio filenames for source privacy) that you can send in Slack.
+  Open **`More Tools`** and double-click **`Make Support Zip.command`**. It creates `Audio Transcriber Support Info.zip` in the main folder. The zip excludes audio and transcripts and redacts the Hugging Face token, folder paths, and source-derived filenames. Send that zip to Nathan in Slack or email.
 
 ---
 

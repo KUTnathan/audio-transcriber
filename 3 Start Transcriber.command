@@ -36,9 +36,19 @@ if [[ -x "$STANDALONE_PY" && -x "$UV" ]]; then
 
     if [[ "$NEED_RELINK" -eq 1 ]]; then
         echo "Detected that this folder was moved since setup — refreshing environment links..."
-        "$UV" venv --allow-existing --python "$STANDALONE_PY" "$VENV_DIR"
-        "$UV" pip install --offline --python "$VENV_PY" --only-binary :all: --find-links "$SUPPORT_DIR/wheels" -r "$SUPPORT_DIR/requirements.lock" >/dev/null 2>&1 || \
-        "$UV" pip install --python "$VENV_PY" --only-binary :all: --find-links "$SUPPORT_DIR/wheels" -r "$SUPPORT_DIR/requirements.lock"
+        if ! "$UV" venv --allow-existing --python "$STANDALONE_PY" "$VENV_DIR"; then
+            echo "ERROR: Could not refresh the private Python environment."
+            echo "Run 'More Tools/Repair Setup.command', then try again."
+            read -r -p "Press Enter to close..."
+            exit 1
+        fi
+        if ! "$UV" pip install --offline --python "$VENV_PY" --only-binary :all: --find-links "$SUPPORT_DIR/wheels" -r "$SUPPORT_DIR/requirements.lock" >/dev/null 2>&1 && \
+           ! "$UV" pip install --python "$VENV_PY" --only-binary :all: --find-links "$SUPPORT_DIR/wheels" -r "$SUPPORT_DIR/requirements.lock"; then
+            echo "ERROR: Could not restore the required Python packages."
+            echo "Run 'More Tools/Repair Setup.command', then try again."
+            read -r -p "Press Enter to close..."
+            exit 1
+        fi
         printf '%s\n' "$APP_DIR" > "$VENV_DIR/.installed_app_dir"
         echo "Environment refreshed!"
         echo

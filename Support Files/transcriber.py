@@ -84,7 +84,7 @@ PYANNOTE_GATED_MODELS = [
     "pyannote/speaker-diarization-3.1",
 ]
 MIN_FREE_GB = 4
-RECOMMENDED_FREE_GB = 8
+RECOMMENDED_FREE_GB = 6
 TOKEN_PATTERN = re.compile(r"^hf_[A-Za-z0-9_\-]{20,}$")
 TOKEN_REDACT_PATTERN = re.compile(r"hf_[A-Za-z0-9_\-]{12,}")
 SOURCE_OFFSET_PATTERN = re.compile(r"\(part \d+ of \d+, from (\d+)h(\d{2})m\)", re.IGNORECASE)
@@ -954,11 +954,12 @@ def _extract_sentences_from_segments(segments: list[dict[str, Any]]) -> list[tup
 
         buf_tokens: list[str] = []
         buf_speakers: list[str] = []
+        buf_speaker: str | None = None
         buf_start: float | None = None
         last_known_time = seg_start
 
         def flush_sentence() -> None:
-            nonlocal buf_tokens, buf_speakers, buf_start
+            nonlocal buf_tokens, buf_speakers, buf_speaker, buf_start
             if not buf_tokens:
                 return
             text = " ".join(buf_tokens).strip()
@@ -968,6 +969,7 @@ def _extract_sentences_from_segments(segments: list[dict[str, Any]]) -> list[tup
                 sentences.append((speaker, start_val, text))
             buf_tokens = []
             buf_speakers = []
+            buf_speaker = None
             buf_start = None
 
         for word_info in valid_words:
@@ -984,7 +986,15 @@ def _extract_sentences_from_segments(segments: list[dict[str, Any]]) -> list[tup
 
             w_speaker = word_info.get("speaker")
             if w_speaker:
-                buf_speakers.append(str(w_speaker))
+                normalized_speaker = str(w_speaker)
+                if buf_tokens and buf_speaker is not None and normalized_speaker != buf_speaker:
+                    # Preserve an attributed speaker handoff even when Whisper
+                    # omitted punctuation at the boundary.
+                    flush_sentence()
+                    if isinstance(w_start, (int, float)):
+                        buf_start = float(w_start)
+                buf_speaker = normalized_speaker
+                buf_speakers.append(normalized_speaker)
 
             buf_tokens.append(token)
             if token.endswith((".", "?", "!")):
@@ -1099,7 +1109,7 @@ def is_file_stable(
     path: Path,
     stop_event: threading.Event | None = None,
     check_interval: float = 2.0,
-    stable_seconds: float = 6.0,
+    stable_seconds: float = 15.0,
     max_wait_seconds: float = 1800.0,
 ) -> bool:
     """Wait until `path` is non-empty, stops changing size, and can be opened for reading."""
@@ -1292,22 +1302,14 @@ class TranscriberEngine:
         if path.suffix.lower() not in VALID_EXTENSIONS:
             return False
         outputs = self.planned_outputs(path, settings)
-        if settings.skip_existing and outputs and all(out.exists() for _, out in outputs):
-            # If the audio file was replaced with a newer/different recording, re-transcribe it!
-            recorded = self.manifest.get(outputs[0][1])
-            try:
-                stat = path.stat()
-                if recorded and (
-                    recorded.get("size") != stat.st_size or recorded.get("mtime_ns") != stat.st_mtime_ns
-                ):
-                    LOG.info("Detected updated audio recording for '%s'; re-transcribing.", path.name)
-                    return True
-            except OSError:
-                pass
+        existing_outputs = [out for _, out in outputs if out.exists()]
+        if settings.skip_existing and existing_outputs:
             if log_skip:
                 LOG.info(
-                    "Skipping '%s' because transcript already exists. (Delete the transcript if you want to redo it.)",
+                    "Skipping '%s' because an output already exists: %s. "
+                    "Move or delete the existing output if you intentionally want to redo it.",
                     path.name,
+                    ", ".join(out.name for out in existing_outputs),
                 )
             return False
         return True
@@ -1333,11 +1335,23 @@ class TranscriberEngine:
             },
         )
         if not is_file_stable(audio_path, stop_event=stop_event):
+            if not stop_event.is_set():
+                self._write_failure_file(
+                    audio_path,
+                    settings,
+                    "The audio file did not finish copying or could not be read within 30 minutes.",
+                )
             return False
         if stop_event.is_set():
             return False
 
         outputs = self.planned_outputs(audio_path, settings)
+        try:
+            source_stat = audio_path.stat()
+            source_signature = (source_stat.st_size, source_stat.st_mtime_ns)
+        except OSError as exc:
+            self._write_failure_file(audio_path, settings, f"The audio file could not be read: {exc}")
+            return False
         check_system_health()
         t0 = time.time()
 
@@ -1434,6 +1448,12 @@ class TranscriberEngine:
 
                 # Step 4/4: Format & write output atomically
                 self.activity.set_stage("[4/4] Saving transcript")
+                latest_stat = audio_path.stat()
+                if (latest_stat.st_size, latest_stat.st_mtime_ns) != source_signature:
+                    raise RuntimeError(
+                        "The audio file changed while it was being transcribed. "
+                        "Wait for the copy or cloud download to finish, then move the file out of the watch folder and back in."
+                    )
                 source_offset = extract_source_offset_seconds(audio_path.name)
                 if source_offset:
                     LOG.info(
@@ -1486,7 +1506,7 @@ class TranscriberEngine:
                     return False
                 message = friendly_error(exc)
                 LOG.error("Could not finish '%s': %s", audio_path.name, message)
-                LOG.debug(traceback.format_exc())
+                LOG.error("Technical details:\n%s", traceback.format_exc())
                 self._write_failure_file(audio_path, settings, message)
                 return False
             finally:
@@ -1757,7 +1777,7 @@ def worker_loop(
                 coordinator.leave_for_resume()
                 break
             LOG.error("Unexpected error while handling '%s': %s", path.name, unexpected)
-            LOG.debug(traceback.format_exc())
+            LOG.error("Technical details:\n%s", traceback.format_exc())
             coordinator.finish_job(path, succeeded=False)
             cur = coordinator.get_settings()
             activity.update("watching", f"Watching {cur.watch_folder}", None)
@@ -1878,7 +1898,7 @@ def download_required_models(settings: JobSettings) -> bool:
         return True
     except Exception as exc:
         LOG.error("FAIL: Could not download/load AI models: %s", friendly_error(exc))
-        LOG.debug(traceback.format_exc())
+        LOG.error("Technical details:\n%s", traceback.format_exc())
         cleanup_torch(settings.device)
         return False
 
@@ -1981,7 +2001,13 @@ def manage_autostart(action: str) -> int:
                     data = plistlib.loads(plist_path.read_bytes())
                     args = data.get("ProgramArguments") or []
                     target = args[-1] if args else ""
-                    print(f"ON ({target})")
+                    loaded = subprocess.run(
+                        ["/bin/launchctl", "print", f"{domain}/{MACOS_AUTOSTART_LABEL}"],
+                        capture_output=True,
+                        check=False,
+                    ).returncode == 0
+                    state = "ON" if loaded else "ON (saved for next login)"
+                    print(f"{state} ({target})")
                 except Exception:
                     print("ON")
             else:
@@ -2045,6 +2071,18 @@ def manage_autostart(action: str) -> int:
             if plutil.exists():
                 subprocess.run([str(plutil), "-lint", str(plist_path)], check=True, stdout=subprocess.DEVNULL)
 
+            bootstrap = subprocess.run(
+                ["/bin/launchctl", "bootstrap", domain, str(plist_path)],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            if bootstrap.returncode != 0:
+                detail = (bootstrap.stderr or bootstrap.stdout or "unknown launchctl error").strip()
+                print(f"ERROR: macOS could not activate Auto-Start: {detail}")
+                print("The setting was saved, but it could not be verified. Run this toggle again.")
+                return 1
+
             print("Auto-Start at Login is now ON.")
             print("Every time you log into this Mac, '3 Start Transcriber.command' will open")
             print("automatically in a visible Terminal window (so you can see status or stop/restart).")
@@ -2082,19 +2120,38 @@ def manage_autostart(action: str) -> int:
 
 
 def _redact_sensitive_text(text: str) -> str:
-    """Strip hf_ tokens, home-folder usernames, and quoted audio/transcript filenames."""
+    """Strip tokens, user paths, and source-derived filenames from support material."""
     redacted = TOKEN_REDACT_PATTERN.sub("hf_[REDACTED_TOKEN]", text)
     home_str = str(Path.home())
     if home_str:
         redacted = redacted.replace(home_str, "~")
-    # Redact quoted audio filenames in logs (`'Confidential Source.m4a'` -> `'<audio-file>'`)
+
+    # Custom folders can live outside the user's home directory (for example,
+    # on a newsroom server or external drive), so redact absolute paths too.
+    redacted = re.sub(r"(?<![\w/:])(?:~|/)[^'\"\n]+", "<redacted-path>", redacted)
+    redacted = re.sub(r"(?i)(?<![\w])(?:[a-z]:\\)[^'\"\n]+", "<redacted-path>", redacted)
+
+    audio_exts = r"wav|mp3|m4a|mp4|mov|flac|ogg|opus|aac|wma|webm"
+    # Logs include filenames both inside and outside quotes. Prefer privacy over
+    # retaining the exact wording around a source filename.
     redacted = re.sub(
-        r"'[^'\n]+\.(?:wav|mp3|m4a|mp4|mov|flac|ogg|opus|aac|wma|webm)'",
+        rf"'[^'\n]+\.(?:{audio_exts})'",
         "'<redacted-audio-file>'",
         redacted,
         flags=re.IGNORECASE,
     )
-    redacted = re.sub(r"(_transcript\.(?:txt|srt)|_FAILED\.txt)", r" <redacted-output>\1", redacted)
+    redacted = re.sub(
+        rf'(?<![\w.])[^\\/:*?"<>|\n]{{1,240}}?\.(?:{audio_exts})(?![\w.])',
+        "<redacted-audio-file>",
+        redacted,
+        flags=re.IGNORECASE,
+    )
+    redacted = re.sub(
+        r'(?<![\w.])[^\\/:*?"<>|\n]{1,240}?_(?:transcript\.(?:txt|srt)|FAILED\.txt)(?![\w.])',
+        "<redacted-output-file>",
+        redacted,
+        flags=re.IGNORECASE,
+    )
     return redacted
 
 
@@ -2125,8 +2182,11 @@ def make_support_zip() -> int:
         raw_cfg = CONFIG_PATH.read_text(encoding="utf-8", errors="replace")
         cfg_lines = []
         for line in raw_cfg.splitlines():
-            if line.strip().lower().startswith("huggingface_token"):
+            setting_name = line.partition("=")[0].strip().lower()
+            if setting_name == "huggingface_token":
                 cfg_lines.append("huggingface_token = [REDACTED]")
+            elif setting_name in {"watch_folder", "transcript_folder", "model_cache_dir", "notification_sound"}:
+                cfg_lines.append(f"{line.partition('=')[0].rstrip()} = [REDACTED PATH]")
             else:
                 cfg_lines.append(_redact_sensitive_text(line))
         settings_redacted = "\n".join(cfg_lines) + "\n"
