@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import configparser
 import os
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -64,41 +65,128 @@ def is_watcher_running() -> bool:
                 return True
 
 
-def _choose_folder_macos(prompt: str, initial_dir: Path) -> str:
-    start_str = str(initial_dir) if initial_dir.exists() else str(APP_DIR)
+def _dialog_start_dir(initial_dir: Path) -> Path:
+    """Open Finder at the user's Home folder (showing Desktop/Documents/etc.) when still on defaults,
+    or at the parent of a custom folder so neighbor folders are immediately visible.
+    """
+    try:
+        if initial_dir.resolve().is_relative_to(APP_DIR.resolve()):
+            return Path.home()
+        if initial_dir.exists() and initial_dir.parent.exists():
+            return initial_dir.parent
+    except Exception:
+        pass
+    return Path.home() if Path.home().exists() else APP_DIR
+
+
+def _parse_terminal_folder_input(raw: str) -> str:
+    """Parse a folder path typed or dragged from Finder into Terminal (handling \\ spaces and quotes)."""
+    text = raw.strip()
+    if not text:
+        return ""
+    try:
+        parts = shlex.split(text)
+        if len(parts) == 1:
+            return parts[0].strip()
+    except ValueError:
+        pass
+    return text.strip("'\"")
+
+
+def _prompt_terminal_folder_fallback(step_label: str, current_dir: Path) -> str:
+    if not sys.stdin or not sys.stdin.isatty():
+        return ""
+    print(f"  Tip: You can also drag your {step_label} folder from Finder right into")
+    print("       this Terminal window and press Enter (or just press Enter to keep current):")
+    try:
+        raw = input("  Folder path (or Enter to keep current): ")
+    except EOFError:
+        return ""
+    return _parse_terminal_folder_input(raw)
+
+
+def _choose_folder_macos(prompt: str, initial_dir: Path, step_label: str = "desired") -> str:
+    start_dir = _dialog_start_dir(initial_dir)
+    start_str = str(start_dir)
     applescript = """
 on run argv
     set promptText to item 1 of argv
     set startPath to item 2 of argv
+    set hasDefault to false
     try
         set defaultAlias to (POSIX file startPath) as alias
-        set chosenFolder to choose folder with prompt promptText default location defaultAlias
-        return POSIX path of chosenFolder
-    on error number -128
-        return ""
-    on error
-        try
+        set hasDefault to true
+    end try
+
+    -- Try 1: Top-level activate (needs zero TCC Automation permission)
+    try
+        activate
+        if hasDefault then
+            set chosenFolder to choose folder with prompt promptText default location defaultAlias
+        else
             set chosenFolder to choose folder with prompt promptText
-            return POSIX path of chosenFolder
+        end if
+        return "OK:" & (POSIX path of chosenFolder)
+    on error number -128
+        return "CANCEL"
+    on error
+        -- Try 2: Terminal (the app already hosting this window)
+        try
+            tell application "Terminal"
+                activate
+                if hasDefault then
+                    set chosenFolder to choose folder with prompt promptText default location defaultAlias
+                else
+                    set chosenFolder to choose folder with prompt promptText
+                end if
+            end tell
+            return "OK:" & (POSIX path of chosenFolder)
         on error number -128
-            return ""
+            return "CANCEL"
+        on error
+            -- Try 3: SystemUIServer fallback
+            try
+                tell application "SystemUIServer"
+                    activate
+                    set chosenFolder to choose folder with prompt promptText
+                end tell
+                return "OK:" & (POSIX path of chosenFolder)
+            on error number -128
+                return "CANCEL"
+            on error errMsg number errNum
+                return "ERR:" & errNum & ":" & errMsg
+            end try
         end try
     end try
 end run
 """
+    cmd = ["/usr/bin/osascript"]
+    for line in applescript.strip().splitlines():
+        cmd.extend(["-e", line])
+    cmd.extend(["--", prompt, start_str])
+
     result = subprocess.run(
-        ["/usr/bin/osascript", "-", prompt, start_str],
-        input=applescript,
+        cmd,
         text=True,
         capture_output=True,
         check=False,
     )
-    if result.returncode != 0:
-        return ""
-    chosen = result.stdout.strip()
-    if chosen and chosen != "/":
-        chosen = chosen.rstrip("/")
-    return chosen
+    out = result.stdout.strip()
+    if result.returncode == 0 and out.startswith("OK:"):
+        chosen = out[3:].strip()
+        if chosen and chosen != "/":
+            chosen = chosen.rstrip("/")
+        return chosen
+
+    # Bring Terminal back to the front so the user can either press Enter or drag a folder in!
+    subprocess.run(
+        ["/usr/bin/osascript", "-e", 'tell application "Terminal" to activate'],
+        capture_output=True,
+        check=False,
+    )
+    if out != "CANCEL":
+        print("  (Finder popup window could not open automatically on this Mac.)")
+    return _prompt_terminal_folder_fallback(step_label, initial_dir)
 
 
 def _choose_folder_windows(prompt: str, initial_dir: Path) -> str:
@@ -140,14 +228,14 @@ def _choose_folder_windows(prompt: str, initial_dir: Path) -> str:
     return ""
 
 
-def choose_folder_dialog(prompt: str, initial_dir: Path) -> str:
+def choose_folder_dialog(prompt: str, initial_dir: Path, step_label: str = "desired") -> str:
     if sys.platform == "darwin":
-        return _choose_folder_macos(prompt, initial_dir)
+        return _choose_folder_macos(prompt, initial_dir, step_label=step_label)
     if sys.platform == "win32":
         return _choose_folder_windows(prompt, initial_dir)
     try:
         raw = input(f"{prompt} [Press Enter to keep '{initial_dir}']: ").strip()
-        return raw
+        return _parse_terminal_folder_input(raw)
     except EOFError:
         return ""
 
@@ -267,14 +355,16 @@ def main(argv: list[str] | None = None) -> int:
         print(f"  1. Audio input (watch) folder : {current_watch}")
         print(f"  2. Transcript output folder   : {current_transcript}")
         print()
-        print("Two folder-selection windows will open one at a time.")
-        print("Tip: Click 'Cancel' on either window if you want to keep that folder unchanged.")
+        print("For each step below, a Finder window will pop up so you can pick a folder.")
+        print("Tip: Prefer drag-and-drop? Close/Cancel the popup, drag any folder from Finder")
+        print("     into this Terminal window, and press Enter! (Or press Enter to keep as-is.)")
         print()
 
         print("Step 1 of 2: Choose the AUDIO INPUT folder (where you drop audio files)...")
         chosen_watch = choose_folder_dialog(
             "Step 1 of 2: Choose the folder where you will drop audio files",
             current_watch,
+            step_label="AUDIO INPUT (watch)",
         )
         if chosen_watch:
             print(f"  -> Selected: {chosen_watch}")
@@ -286,6 +376,7 @@ def main(argv: list[str] | None = None) -> int:
         chosen_transcript = choose_folder_dialog(
             "Step 2 of 2: Choose the folder where finished transcripts should be saved",
             current_transcript,
+            step_label="TRANSCRIPT OUTPUT",
         )
         if chosen_transcript:
             print(f"  -> Selected: {chosen_transcript}")
